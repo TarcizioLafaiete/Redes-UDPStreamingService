@@ -14,12 +14,7 @@
 #define IPV6 1
 #define UNK 2
 
-#define CLOSE_CLIENT (char)0xC1
-#define REQUEST_DRIVE (char)0xC2
-#define REQUEST_DRIVE_ACCEPTED (char)0xC3
-#define REQUEST_DRIVE_REFUSED (char)0xC4
-#define ACKNOWLEDGE_REQ (char)0xC5
-#define DRIVE_FINISH_REQ (char) 0xEF
+#define MAX_MESSAGE_SIZE 300
 
 typedef struct{
     int type;

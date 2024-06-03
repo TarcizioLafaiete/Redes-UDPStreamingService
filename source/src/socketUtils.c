@@ -1,7 +1,5 @@
 #include "../include/socketUtils.h"
 
-const int max_messagem_size = 240;
-
 typeIP translateIP(char* typeOfIP){
     typeIP ip;
 

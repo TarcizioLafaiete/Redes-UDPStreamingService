@@ -6,7 +6,10 @@
 #include "../include/clientCore.h"
 #include "../include/terminalPrinter.h"
 
-
+typedef struct{
+    socket_address socket;
+    datagram data;
+} clientClojure;
 
 clientCore initClient(char* argv[]){
     clientCore core;
@@ -22,6 +25,25 @@ clientCore initClient(char* argv[]){
     return core;
 }
 
+void sendDatagram(clientCore core,datagram data){
+
+    if(core.inet.type == IPV4){
+        sendto(core.client_fd,&data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)NULL,sizeof(core.serverSocket.addr));
+    }
+    else if(core.inet.type == IPV6){
+        sendto(core.client_fd,&data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)NULL,sizeof(core.serverSocket.addr6));
+    }
+
+}
+
+datagram receiveDatagram(int socket){
+    
+    datagram data;
+    recvfrom(socket,&data,sizeof(data),0,(struct sockaddr*)NULL,NULL);
+    return data;
+
+}
+
 int main(int argc, char* argv[]){
 
     printf("Iniciando esta merda \n");
@@ -31,11 +53,10 @@ int main(int argc, char* argv[]){
     datagram msg = {.id = 1, .timeStamp = (int)time(NULL), .buffer = "Hello Server \n"};
 
     printf("Sending datagram \n");
-    sendto(core.client_fd,&msg,500,0,(struct sockaddr*)NULL,sizeof(core.serverSocket.addr));
+    sendDatagram(core,msg);
     printf("Datagrama enviado \n");
 
-    datagram ret;
-    recvfrom(core.client_fd,&ret,sizeof(ret),0,(struct sockaddr*)NULL,NULL);
+    datagram ret = receiveDatagram(core.client_fd);
 
     printf("id: %d timestamp: %d buffer: %s \n",ret.id,ret.timeStamp,ret.buffer);
 
