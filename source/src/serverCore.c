@@ -26,26 +26,6 @@ void binding(serverCore* core){
 
 }
 
-void listening(int server_fd){
-    int listen_fd = listen(server_fd,3);
-    if(listen_fd < 0){
-        printf("Nao foi possivel abrir a escuta \n");
-        exit(EXIT_FAILURE);
-    }
-}
-
-int acceptConnection(serverCore* core){
-    if(core->inet.type == IPV4){
-        return accept(core->server_fd,(struct sockaddr*)&core->socket.addr,&core->socket.len);
-    }
-    else if(core->inet.type == IPV6){
-        return accept(core->server_fd,(struct sockaddr*)&core->socket.addr6,&core->socket.len);
-    }
-    else{
-        return -1;
-    }
-}
-
 void close_server(int socket_fd, int conn_sock){
     close(conn_sock);
     close(socket_fd);

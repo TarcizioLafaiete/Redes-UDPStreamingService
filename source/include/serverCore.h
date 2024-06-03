@@ -12,8 +12,6 @@ typedef struct{
 
 void configure_options(int server_fd);
 void binding(serverCore* core);
-void listening(int server_fd);
-int acceptConnection(serverCore* core);
 void close_server(int socket_fd, int conn_sock);
 
 #endif
