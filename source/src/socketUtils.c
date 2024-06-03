@@ -38,10 +38,10 @@ socket_address configure_addr(typeIP ip,int port){
 void create_socket(int* socket_fd,typeIP ip){
     
     if(ip.type == IPV4){
-        *socket_fd = socket(AF_INET,SOCK_STREAM,0);
+        *socket_fd = socket(AF_INET,SOCK_DGRAM,0);
     }
     else if(ip.type == IPV6){
-        *socket_fd = socket(AF_INET6,SOCK_STREAM,0);
+        *socket_fd = socket(AF_INET6,SOCK_DGRAM,0);
     }
     else{
         *socket_fd = -1;
