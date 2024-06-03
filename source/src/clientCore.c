@@ -18,7 +18,7 @@ void connect_client(clientCore* core){
 }
 
 void close_client(int socket){
-    char c = CLOSE_CLIENT;
-    sendMessage(&c,socket);
-    close(socket);
+    // char c = CLOSE_CLIENT;
+    // sendMessage(&c,socket);
+    // close(socket);
 }
