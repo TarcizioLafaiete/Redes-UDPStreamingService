@@ -1,6 +1,6 @@
 #include "../include/socketUtils.h"
 
-const int max_messagem_size = 64;
+const int max_messagem_size = 240;
 
 typeIP translateIP(char* typeOfIP){
     typeIP ip;
@@ -21,11 +21,13 @@ socket_address configure_addr(typeIP ip,int port){
     socket_address socket;
 
     if(ip.type == IPV4){
+        bzero(&socket.addr,sizeof(socket.addr));
         socket.addr.sin_family = AF_INET;
         socket.addr.sin_port = htons(port);
-        socket.addr.sin_addr.s_addr = INADDR_ANY;
+        socket.addr.sin_addr.s_addr = htonl(INADDR_ANY);
     }
     else if(ip.type == IPV6){
+        bzero(&socket.addr6,sizeof(socket.addr6));
         socket.addr6.sin6_family = AF_INET6;
         socket.addr6.sin6_port = htons(port);
         socket.addr6.sin6_addr = in6addr_any; 
@@ -52,14 +54,4 @@ void create_socket(int* socket_fd,typeIP ip){
         exit(EXIT_FAILURE);
     }
 
-}
-
-const char* receiveMessage(int socket){
-    char* buffer = (char*)calloc(max_messagem_size,sizeof(char));
-    read(socket,buffer,max_messagem_size);
-    return buffer;
-}
-
-void sendMessage(const char* msg,int socket){
-    send(socket,msg,strlen(msg),0);
 }

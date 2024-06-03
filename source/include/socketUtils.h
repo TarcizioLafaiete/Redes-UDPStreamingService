@@ -6,6 +6,7 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 
@@ -30,12 +31,14 @@ typedef struct{
     socklen_t len;
 } socket_address;
 
+typedef struct{
+    int id;
+    int timeStamp;
+    char buffer[250];
+} datagram;
 
 typeIP translateIP(char* ip);
 socket_address configure_addr(typeIP inet, int port);
 void create_socket(int* socket_fd,typeIP inet);
-
-const char* receiveMessage(int socket);
-void sendMessage(const char* msg,int socket);
 
 #endif
