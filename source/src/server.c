@@ -4,10 +4,6 @@
 #include "../include/socketUtils.h"
 #include "../include/serverCore.h"
 #include "../include/terminalPrinter.h"
-#include "../include/coordinateUtils.h"
-
-Coordinate coordServ = {-19.9227,-43.9451};
-
 
 
 serverCore initServer(char* argv[]){
