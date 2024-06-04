@@ -5,6 +5,8 @@
 
 typedef struct{
     int client_fd;
+    int ready;
+    int client_id;
     socket_address serverSocket;
     typeIP inet;
 } clientCore;

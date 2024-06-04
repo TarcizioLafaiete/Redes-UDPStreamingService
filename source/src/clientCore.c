@@ -3,6 +3,8 @@
 
 void connect_client(clientCore* core){
     int status = 0;
+    core->ready = 0;
+    core->client_id = 0;
     if(core->inet.type == IPV4){
         status = connect(core->client_fd,(struct sockaddr*)&core->serverSocket.addr,sizeof(core->serverSocket.addr));
     }
