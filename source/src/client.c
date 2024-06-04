@@ -6,11 +6,6 @@
 #include "../include/clientCore.h"
 #include "../include/terminalPrinter.h"
 
-typedef struct{
-    socket_address socket;
-    datagram data;
-} clientClojure;
-
 clientCore initClient(char* argv[]){
     clientCore core;
 
@@ -46,19 +41,7 @@ datagram receiveDatagram(int socket){
 
 int main(int argc, char* argv[]){
 
-    printf("Iniciando esta merda \n");
-
-    clientCore core = initClient(argv);
-
-    datagram msg = {.id = 1, .timeStamp = (int)time(NULL), .buffer = "Hello Server \n"};
-
-    printf("Sending datagram \n");
-    sendDatagram(core,msg);
-    printf("Datagrama enviado \n");
-
-    datagram ret = receiveDatagram(core.client_fd);
-
-    printf("id: %d timestamp: %d buffer: %s \n",ret.id,ret.timeStamp,ret.buffer);
+    clientCore
 
     return 0;
 }
