@@ -5,11 +5,11 @@
 
 #include "../include/socketUtils.h"
 #include "../include/serverCore.h"
-#include "../include/terminalPrinter.h"
 #include "../include/queue.h"
 
 typedef struct{
     serverCore core;
+    struct sockaddr_in6 cliaddr6;
     struct sockaddr cliaddr;
     int cliaddr_len;
     datagram data;
@@ -30,14 +30,27 @@ serverCore initServer(char* argv[]){
 }
 
 void receiveDatagram(int socket,serverClojure* clojure){
-    struct sockaddr cliaddr;
-    int len = sizeof(cliaddr);
-    recvfrom(socket,&clojure->data,sizeof(clojure->data),0,&clojure->cliaddr,&clojure->cliaddr_len);
+
+    if(clojure->core.inet.type == IPV4){
+        struct sockaddr cliaddr;
+        int len = sizeof(cliaddr);
+        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,&clojure->cliaddr,&clojure->cliaddr_len);
+    }
+    else{
+        struct sockaddr_in6 cliaddr;
+        int len = sizeof(cliaddr);
+        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,(struct sockaddr*)&clojure->cliaddr6,&clojure->cliaddr_len);
+    }
 }
 
 void sendDatagram(int socket, serverClojure clojure){
 
-    sendto(socket,&clojure.data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)&clojure.cliaddr,sizeof(clojure.cliaddr));
+    if(clojure.core.inet.type == IPV4){
+        sendto(socket,&clojure.data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)&clojure.cliaddr,sizeof(clojure.cliaddr));
+    }
+    else{
+        sendto(socket,&clojure.data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)&clojure.cliaddr6,sizeof(clojure.cliaddr6));
+    }
 
 }
 
