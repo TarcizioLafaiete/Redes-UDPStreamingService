@@ -25,7 +25,7 @@ socket_address configure_addr(typeIP ip,int port){
         socket.addr.sin_addr.s_addr = htonl(INADDR_ANY);
     }
     else if(ip.type == IPV6){
-        bzero(&socket.addr6,sizeof(socket.addr6));
+        memset(&socket.addr6,0,sizeof(socket.addr6));
         socket.addr6.sin6_family = AF_INET6;
         socket.addr6.sin6_port = htons(port);
         socket.addr6.sin6_addr = in6addr_any; 
