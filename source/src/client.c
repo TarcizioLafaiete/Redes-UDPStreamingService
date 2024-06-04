@@ -6,6 +6,7 @@
 #include "../include/clientCore.h"
 #include "../include/terminalPrinter.h"
 
+
 clientCore initClient(char* argv[]){
     clientCore core;
 
@@ -39,9 +40,76 @@ datagram receiveDatagram(int socket){
 
 }
 
+int chooseMovie(){
+    int movieSelected;
+
+    printMovieOptions();
+    while(1){
+        printf("Opção Escolhida: ");
+        scanf("%d",&movieSelected);
+        if(movieSelected >= 0 && movieSelected <= 3){
+            return movieSelected;
+        }
+        printf("Opcao Invalida! \n");
+    }
+}
+
+int startConnection(clientCore core, int movieSelected){
+    datagram startDatagram = {.startConnection = 1,
+                            .id = -1,
+                            .escolha = movieSelected,
+                            .sequence = -1,
+                            .ack = -1,
+                            .buffer = "\0"
+    };
+    sendDatagram(core,startDatagram);
+
+    datagram response = receiveDatagram(core.client_fd);
+    return response.id;
+}
+
+void endConnection(clientCore core){
+    if(!core.ready){return;}
+
+    datagram endDatagram = {.startConnection = 0,
+                            .id = core.client_id,
+                            .escolha = 0,
+                            .sequence = 6,
+                            .ack = -1,
+                            .buffer = "\0"};
+    sendDatagram(core,endDatagram);
+}
+
+void phraseRoutine(clientCore core){
+    int last_sequence = 0;
+    printBorder();
+    while(last_sequence <= 5){
+        datagram response = receiveDatagram(core.client_fd);
+        last_sequence = response.sequence;
+        printPhrase(response.buffer);
+    }
+    printBorder();
+
+}
+
 int main(int argc, char* argv[]){
 
-    clientCore
+    clientCore core = initClient(argv);
+    while(1){
+        int movieSelected = chooseMovie();
+        if(!movieSelected){
+            endConnection(core);
+            return 0;
+        }
+
+        if(!core.ready){
+            core.client_id = startConnection(core,movieSelected);
+            printf("client id fornecido: %d \n",core.client_id);
+            core.ready = 1;
+        }
+        phraseRoutine(core);
+
+    }
 
     return 0;
 }
