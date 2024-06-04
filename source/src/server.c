@@ -5,17 +5,24 @@
 
 #include "../include/socketUtils.h"
 #include "../include/serverCore.h"
-#include "../include/queue.h"
+#include "../include/vector.h"
 
 typedef struct{
     serverCore core;
-    struct sockaddr_in6 cliaddr6;
     struct sockaddr cliaddr;
+    struct sockaddr_in6 cliaddr6;
     int cliaddr_len;
     datagram data;
 } serverClojure;
 
 int client_id = 0;
+S_cVector* writeBuffer;
+S_cVector* readBuffer;
+S_cVector* threadBuffer;
+
+pthread_mutex_t writeBufferMutex;
+pthread_mutex_t readBufferMutex;
+
 
 serverCore initServer(char* argv[]){
     serverCore core;
@@ -34,13 +41,18 @@ void receiveDatagram(int socket,serverClojure* clojure){
     if(clojure->core.inet.type == IPV4){
         struct sockaddr cliaddr;
         int len = sizeof(cliaddr);
-        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,&clojure->cliaddr,&clojure->cliaddr_len);
+        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,&cliaddr,&len);
+        clojure->cliaddr = cliaddr;
+        clojure->cliaddr_len = len;
     }
     else{
         struct sockaddr_in6 cliaddr;
         int len = sizeof(cliaddr);
-        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,(struct sockaddr*)&clojure->cliaddr6,&clojure->cliaddr_len);
+        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,(struct sockaddr*)&cliaddr,&len);
+        clojure->cliaddr6 = cliaddr;
+        clojure->cliaddr_len = len;
     }
+
 }
 
 void sendDatagram(int socket, serverClojure clojure){
@@ -54,40 +66,115 @@ void sendDatagram(int socket, serverClojure clojure){
 
 }
 
-void* clientHandler(void *arg){
+void* clientHandle(void* arg){
 
-    serverClojure* clojure = (serverClojure*)arg;
+    int* id = (int*)arg;
+    int index = *id - 1;
+    serverClojure recvClojure;
+    serverClojure sendClojure;
 
-    clojure->data.id = client_id;
-    sendDatagram(clojure->core.server_fd,*clojure);
+    pthread_mutex_lock(&readBufferMutex);
+    getElementVector(readBuffer,index,&recvClojure);
+    printf("Start Connection: %d \n",recvClojure.data.startConnection);
+    pthread_mutex_unlock(&readBufferMutex);
 
-    int sequence = 0;
-    while(sequence <= 5){
-        sequence++;
-        clojure->data.sequence = sequence;
-        memcpy(clojure->data.buffer,"Phrase",MAX_MESSAGE_SIZE);
-        sendDatagram(clojure->core.server_fd,*clojure);
-        sleep(3);
+    int movieSelected = recvClojure.data.escolha;
+    printf("movie Selected: %d \n",movieSelected);
+
+    datagram confirmConnection = { .startConnection = 0,
+                                .id = *id,
+                                .escolha = -1,
+                                .sequence = 0,
+                                .ack = -1,
+                                .buffer = "\0"};
+
+    sendClojure = recvClojure;
+    while(recvClojure.data.ack != *id){
+        sendClojure.data =  confirmConnection;
+        printf("send Clojure Data: %d \n",sendClojure.data.id);
+
+        pthread_mutex_lock(&writeBufferMutex);
+        push(writeBuffer,&sendClojure);
+        printf("Datagram pushed to writeBuffer \n");
+        pthread_mutex_unlock(&writeBufferMutex);
+    
+        sleep(1);
+        
+        pthread_mutex_lock(&readBufferMutex);
+        getElementVector(readBuffer,index,&recvClojure);
+        printf("read Buffer ack: %d \n",recvClojure.data.ack);
+        pthread_mutex_unlock(&readBufferMutex);
     }
 
 }
 
-int main(int argc,char* argv[]){
-
-    serverClojure clojure;
-    clojure.core = initServer(argv);
-    S_Queue* threadQueue = create_queue(sizeof(pthread_t));
+void* sendHandle(void* arg){
+    
+    serverCore* core = (serverCore*)arg;
 
     while(1){
+        serverClojure clojure;
+        clojure.core = *core;
+        
+        pthread_mutex_lock(&writeBufferMutex);
+        if(getSize(writeBuffer) > 0){
+            printf("Has data - size: %d \n",getSize(writeBuffer));
+            pop(writeBuffer,&clojure);
+            sendDatagram(clojure.core.server_fd,clojure);
+            printf("Datagram Sent \n");
+        }
+        pthread_mutex_unlock(&writeBufferMutex);
+    }
+
+}
+
+void* recvHandle(void* arg){
+    
+    serverCore* core = (serverCore*)arg;
+
+    while(1){
+        serverClojure clojure;
+        clojure.core = *core;
         receiveDatagram(clojure.core.server_fd,&clojure);
+        printf("startConnection Requisition: %d \n",clojure.data.startConnection);
         if(clojure.data.startConnection){
-            printf("conexao funcionou \n");
-            client_id++;
-            pthread_t newConnection;
-            serverClojure auxClojure = clojure;
-            pthread_create(&newConnection,NULL,clientHandler,&auxClojure);
+            printf("connection starting ... \n");
+
+            pthread_mutex_lock(&readBufferMutex);
+            push(readBuffer,&clojure);
+            printf("Open space in buffer to this client \n");
+            client_id = getSize(readBuffer);
+            printf("Generate client id: %d \n",client_id);
+            pthread_mutex_unlock(&readBufferMutex);
+            
+            pthread_t newThread;
+            pthread_create(&newThread,NULL,clientHandle,&client_id);
+            printf("New thread created \n");
+            push(threadBuffer,&newThread);
+            printf("Put this thread in threadBuffer \n");
+        }
+        else{
+            setElementVector(readBuffer,clojure.data.id,&clojure);
         }
     }
+}
+
+int main(int argc,char* argv[]){
+
+    serverCore core = initServer(argv);
+    writeBuffer = create_vector(sizeof(serverClojure));
+    readBuffer = create_vector(sizeof(serverClojure));
+    threadBuffer = create_vector(sizeof(serverClojure));
+
+
+    pthread_t recvThread, sendThread;
+    pthread_create(&recvThread,NULL,recvHandle,&core);
+    pthread_create(&sendThread,NULL,sendHandle,&core);
+    pthread_mutex_init(&writeBufferMutex,NULL);
+    pthread_mutex_init(&readBufferMutex,NULL);
+
+    pthread_join(recvThread,NULL);
+    pthread_join(sendThread,NULL);
 
     return 0;
 }

@@ -64,7 +64,11 @@ int startConnection(clientCore core, int movieSelected){
     };
     sendDatagram(core,startDatagram);
 
+    printf("Receiving datagram \n");
     datagram response = receiveDatagram(core.client_fd);
+    printf("Datagram received \n");
+    response.ack = response.id;
+    sendDatagram(core,response);
     return response.id;
 }
 
@@ -107,7 +111,8 @@ int main(int argc, char* argv[]){
             printf("client id fornecido: %d \n",core.client_id);
             core.ready = 1;
         }
-        phraseRoutine(core);
+        return 0;
+        // phraseRoutine(core);
 
     }
 
