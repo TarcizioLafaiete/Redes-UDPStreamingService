@@ -31,6 +31,7 @@ typedef struct{
     int sequence;
     int escolha;
     int startConnection;
+    int ack;
     char buffer[250];
 } datagram;
 

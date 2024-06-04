@@ -4,12 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-void printWaitingRequest();
-void printRideAvaiable();
-void printAcceptRide();
-void printNotFoundDrive();
-void printInitOrEndDrive();
-void printUpdateDistance(const char* message);
-void printEndOfRide();
+void printMovieOptions();
+void printBorder();
+void printPhrase(char* msg);
 
 #endif
