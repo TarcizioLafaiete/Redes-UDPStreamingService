@@ -27,6 +27,7 @@ void reduceVector(S_cVector* vector,void* element){
 
     if(vector->size == 1){
         memcpy(element,vector->data,vector->elementSize);
+        vector->size--;
         free(vector->data);
         return;
     }
