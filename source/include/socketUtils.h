@@ -28,7 +28,9 @@ typedef struct{
 
 typedef struct{
     int id;
-    int timeStamp;
+    int sequence;
+    int escolha;
+    int startConnection;
     char buffer[250];
 } datagram;
 
