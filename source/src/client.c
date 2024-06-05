@@ -73,10 +73,10 @@ int chooseMovie(){
     }
 }
 
-int startConnection(clientCore core, int movieSelected){
+int startConnection(clientCore core){
     datagram startDatagram = {.startConnection = 1,
                             .id = -1,
-                            .escolha = movieSelected,
+                            .escolha = -1,
                             .sequence = -1,
                             .ack = -1,
                             .buffer = "\0"
@@ -140,12 +140,11 @@ int main(int argc, char* argv[]){
         }
 
         if(!core.ready){
-            core.client_id = startConnection(core,movieSelected);
+            core.client_id = startConnection(core);
             printf("client id fornecido: %d \n",core.client_id);
             core.ready = 1;
         }
         phraseRoutine(core);
-        return 0;
     }
     // pthread_join(sendThread,NULL);
 
