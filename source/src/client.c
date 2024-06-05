@@ -75,6 +75,7 @@ int chooseMovie(){
 
 int startConnection(clientCore core){
     datagram startDatagram = {.startConnection = 1,
+                            .endConnection = 0,
                             .id = -1,
                             .escolha = -1,
                             .sequence = -1,
@@ -110,9 +111,10 @@ void endConnection(clientCore core){
     if(!core.ready){return;}
 
     datagram endDatagram = {.startConnection = 0,
+                            .endConnection = 1,
                             .id = core.client_id,
                             .escolha = 0,
-                            .sequence = 6,
+                            .sequence = -1,
                             .ack = -1,
                             .buffer = "\0"};
     sendDatagram(core,endDatagram);
@@ -147,17 +149,17 @@ int main(int argc, char* argv[]){
 
     while(1){
         int movieSelected = chooseMovie();
-        if(!movieSelected){
-            endConnection(core);
-            return 0;
-        }
-
         if(!core.ready){
+            printf("Requisitando conexao \n");
             core.client_id = startConnection(core);
             printf("client id fornecido: %d \n",core.client_id);
             core.ready = 1;
         }
         movieSelectionResponse(core,movieSelected);
+        if(!movieSelected){
+            endConnection(core);
+            return 0;
+        }
         phraseRoutine(core);
     }
     // pthread_join(sendThread,NULL);

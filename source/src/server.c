@@ -15,13 +15,15 @@ typedef struct{
     datagram data;
 } serverClojure;
 
-int client_id = 0;
+int num_client;
+
 S_LinkedList* writeBuffer;
 S_LinkedList* readBuffer;
 S_LinkedList* threadBuffer;
 
 pthread_mutex_t writeBufferMutex;
 pthread_mutex_t readBufferMutex;
+pthread_mutex_t numClientMutex;
 
 
 serverCore initServer(char* argv[]){
@@ -75,7 +77,10 @@ void confirmConnectionRoutine(int id){
     getItem(readBuffer,id,&recvClojure);
     pthread_mutex_unlock(&readBufferMutex);
 
+    printf("Confirm connection routine \n");
+
     datagram confirmConnection = { .startConnection = 0,
+                                .endConnection = 0,
                                 .id = id,
                                 .escolha = -1,
                                 .sequence = 0,
@@ -83,8 +88,10 @@ void confirmConnectionRoutine(int id){
                                 .buffer = "\0"};
 
     sendClojure = recvClojure;
+    printf("id: %d - ack: %d \n",id,recvClojure.data.ack);
     while(recvClojure.data.ack != id){
         sendClojure.data =  confirmConnection;
+        printf("ID check : %d \n",sendClojure.data.id);
 
         pthread_mutex_lock(&writeBufferMutex);
         push(writeBuffer,&sendClojure);
@@ -95,7 +102,11 @@ void confirmConnectionRoutine(int id){
         pthread_mutex_lock(&readBufferMutex);
         getItem(readBuffer,id,&recvClojure);
         pthread_mutex_unlock(&readBufferMutex);
+
+        printf("ack received: %d \n",recvClojure.data.ack);
     }
+
+    printf("confirm requisition: %d \n",recvClojure.data.ack);
 }
 
 int movieOptionRequest(int id){
@@ -109,6 +120,7 @@ int movieOptionRequest(int id){
     sendClojure = recvClojure;
 
     datagram movieReqeustDatagram ={.startConnection = 0,
+                                    .endConnection = 0,
                                     .id = id,
                                     .escolha = 12,
                                     .sequence = 0,
@@ -146,6 +158,7 @@ void sendMovieScriptRoutine(int id){
     
     printf("Going to streaming routine \n");
     datagram phraseDatagramCycle = {.startConnection = 0,
+                                    .endConnection = 0,
                                     .id = id,
                                     .escolha = -1,
                                     .sequence = 0,
@@ -160,7 +173,7 @@ void sendMovieScriptRoutine(int id){
         sendClojure.data = phraseDatagramCycle;
         printf("Clojure was setted \n");
 
-        while(recvClojure.data.ack != id || recvClojure.data.sequence != sequence){
+        while(recvClojure.data.ack != id || recvClojure.data.sequence < sequence){
             printf("Datagram process \n");
             pthread_mutex_lock(&writeBufferMutex);
             printf("Writing clojure \n");
@@ -172,7 +185,7 @@ void sendMovieScriptRoutine(int id){
             pthread_mutex_lock(&readBufferMutex);
             printf("Verifying if datagram was sent \n");
             getItem(readBuffer,id,&recvClojure);
-            printf("confirmation sequence: %d \n",recvClojure.data.sequence);
+            printf("confirmation sequence: %d e real sequence: %d \n",recvClojure.data.sequence,sequence);
             pthread_mutex_unlock(&readBufferMutex);
         }
 
@@ -186,15 +199,20 @@ void* clientHandle(void* arg){
 
     int* id = (int*)arg;
 
+    printf("ID fornecido nessa porra: %d \n",*id);
+
     confirmConnectionRoutine(*id);
 
     int movieOption = 300;
-    while(movieOption != 0){
+    while(1){
         movieOption = movieOptionRequest(*id);
         printf("movieOption: %d \n",movieOption);
+        if(!movieOption){
+            break;
+        }
         sendMovieScriptRoutine(*id);
     }
-
+    printf("Finanlizando client Handle \n");
 }
 
 void* sendHandle(void* arg){
@@ -225,41 +243,72 @@ void* recvHandle(void* arg){
         receiveDatagram(clojure.core.server_fd,&clojure);
 
         if(clojure.data.startConnection){
-
             pthread_mutex_lock(&readBufferMutex);
             push(readBuffer,&clojure);
-            client_id = getSize(readBuffer);
+            int client_id = getSize(readBuffer);
             pthread_mutex_unlock(&readBufferMutex);
             
             pthread_t newThread;
             pthread_create(&newThread,NULL,clientHandle,&client_id);
             push(threadBuffer,&newThread);
+
+            pthread_mutex_lock(&numClientMutex);
+            num_client++;
+            pthread_mutex_unlock(&numClientMutex);
+
+        }
+        else if(clojure.data.endConnection){
+            pthread_t thread;
+            getItem(threadBuffer,clojure.data.id,&thread);
+            pthread_join(thread,NULL);
+
+            pthread_mutex_lock(&numClientMutex);
+            num_client--;
+            pthread_mutex_unlock(&numClientMutex);
+
         }
         else{
             pthread_mutex_lock(&readBufferMutex);
-            printf("sequence data: %d  - clojure data: %d \n",clojure.data.sequence,clojure.data.id);
             setItem(readBuffer,clojure.data.id,&clojure);
+            printf("Buffer Setted \n");
             pthread_mutex_unlock(&readBufferMutex);
         }
     }
 }
 
-int main(int argc,char* argv[]){
+
+void* clientNumberHandle(void* arg){
+
+    while(1){
+        sleep(4);
+
+        pthread_mutex_lock(&numClientMutex);
+        printf("Numero de Clientes: %d \n",num_client);
+        pthread_mutex_unlock(&numClientMutex);
+    }
+
+}
+
+int main(int argc,char* argv[]){num_client++;
 
     serverCore core = initServer(argv);
     writeBuffer = create_list(sizeof(serverClojure));
     readBuffer = create_list(sizeof(serverClojure));
     threadBuffer = create_list(sizeof(pthread_t));
+    num_client = 0;
 
-
-    pthread_t recvThread, sendThread;
+    pthread_t recvThread, sendThread,clientNumberThread;
     pthread_create(&recvThread,NULL,recvHandle,&core);
     pthread_create(&sendThread,NULL,sendHandle,&core);
+    pthread_create(&clientNumberThread,NULL,clientNumberHandle,NULL);
+    
     pthread_mutex_init(&writeBufferMutex,NULL);
     pthread_mutex_init(&readBufferMutex,NULL);
+    pthread_mutex_init(&numClientMutex,NULL);
 
     pthread_join(recvThread,NULL);
     pthread_join(sendThread,NULL);
+    pthread_join(clientNumberThread,NULL);
 
     return 0;
 }
