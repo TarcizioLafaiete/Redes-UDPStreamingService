@@ -93,6 +93,19 @@ int startConnection(clientCore core){
     return response.id;
 }
 
+void movieSelectionResponse(clientCore core,int movieSelected){
+
+    datagram response = receiveDatagram(core.client_fd);
+
+    printf("response received: %d \n",response.escolha);
+
+    response.ack = core.client_id;
+    response.escolha = movieSelected;
+
+    sendDatagram(core,response);
+
+}
+
 void endConnection(clientCore core){
     if(!core.ready){return;}
 
@@ -144,6 +157,7 @@ int main(int argc, char* argv[]){
             printf("client id fornecido: %d \n",core.client_id);
             core.ready = 1;
         }
+        movieSelectionResponse(core,movieSelected);
         phraseRoutine(core);
     }
     // pthread_join(sendThread,NULL);

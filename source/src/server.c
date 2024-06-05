@@ -98,6 +98,42 @@ void confirmConnectionRoutine(int id){
     }
 }
 
+int movieOptionRequest(int id){
+    serverClojure recvClojure;
+    serverClojure sendClojure;
+
+    pthread_mutex_lock(&readBufferMutex);
+    getItem(readBuffer,id,&recvClojure);
+    pthread_mutex_unlock(&readBufferMutex);
+
+    sendClojure = recvClojure;
+
+    datagram movieReqeustDatagram ={.startConnection = 0,
+                                    .id = id,
+                                    .escolha = 12,
+                                    .sequence = 0,
+                                    .ack = -1,
+                                    .buffer = "\0"};
+
+    while(recvClojure.data.ack != id || recvClojure.data.escolha == -1){
+        sendClojure.data = movieReqeustDatagram;
+
+        pthread_mutex_lock(&writeBufferMutex);
+        push(writeBuffer,&sendClojure);
+        pthread_mutex_unlock(&writeBufferMutex);
+
+        sleep(1);
+
+        pthread_mutex_lock(&readBufferMutex);
+        getItem(readBuffer,id,&recvClojure);
+        pthread_mutex_unlock(&readBufferMutex);
+
+    }
+
+    return recvClojure.data.escolha;
+
+}
+
 void sendMovieScriptRoutine(int id){
     serverClojure recvClojure;
     serverClojure sendClojure;
@@ -152,7 +188,12 @@ void* clientHandle(void* arg){
 
     confirmConnectionRoutine(*id);
 
-    sendMovieScriptRoutine(*id);
+    int movieOption = 300;
+    while(movieOption != 0){
+        movieOption = movieOptionRequest(*id);
+        printf("movieOption: %d \n",movieOption);
+        sendMovieScriptRoutine(*id);
+    }
 
 }
 
