@@ -5,7 +5,7 @@
 
 #include "../include/socketUtils.h"
 #include "../include/serverCore.h"
-#include "../include/vector.h"
+#include "../include/linked_list.h"
 
 typedef struct{
     serverCore core;
@@ -16,9 +16,9 @@ typedef struct{
 } serverClojure;
 
 int client_id = 0;
-S_cVector* writeBuffer;
-S_cVector* readBuffer;
-S_cVector* threadBuffer;
+S_LinkedList* writeBuffer;
+S_LinkedList* readBuffer;
+S_LinkedList* threadBuffer;
 
 pthread_mutex_t writeBufferMutex;
 pthread_mutex_t readBufferMutex;
@@ -69,12 +69,11 @@ void sendDatagram(int socket, serverClojure clojure){
 void* clientHandle(void* arg){
 
     int* id = (int*)arg;
-    int index = *id - 1;
     serverClojure recvClojure;
     serverClojure sendClojure;
 
     pthread_mutex_lock(&readBufferMutex);
-    getElementVector(readBuffer,index,&recvClojure);
+    getItem(readBuffer,*id,&recvClojure);
     printf("Start Connection: %d \n",recvClojure.data.startConnection);
     pthread_mutex_unlock(&readBufferMutex);
 
@@ -94,6 +93,7 @@ void* clientHandle(void* arg){
         printf("send Clojure Data: %d \n",sendClojure.data.id);
 
         pthread_mutex_lock(&writeBufferMutex);
+        printf("WriteBuffer size: %d \n",getSize(writeBuffer));
         push(writeBuffer,&sendClojure);
         printf("Datagram pushed to writeBuffer \n");
         pthread_mutex_unlock(&writeBufferMutex);
@@ -101,7 +101,7 @@ void* clientHandle(void* arg){
         sleep(1);
         
         pthread_mutex_lock(&readBufferMutex);
-        getElementVector(readBuffer,index,&recvClojure);
+        getItem(readBuffer,*id,&recvClojure);
         printf("read Buffer ack: %d \n",recvClojure.data.ack);
         pthread_mutex_unlock(&readBufferMutex);
     }
@@ -154,7 +154,7 @@ void* recvHandle(void* arg){
             printf("Put this thread in threadBuffer \n");
         }
         else{
-            setElementVector(readBuffer,clojure.data.id,&clojure);
+            setItem(readBuffer,clojure.data.id,&clojure);
         }
     }
 }
@@ -162,9 +162,9 @@ void* recvHandle(void* arg){
 int main(int argc,char* argv[]){
 
     serverCore core = initServer(argv);
-    writeBuffer = create_vector(sizeof(serverClojure));
-    readBuffer = create_vector(sizeof(serverClojure));
-    threadBuffer = create_vector(sizeof(serverClojure));
+    writeBuffer = create_list(sizeof(serverClojure));
+    readBuffer = create_list(sizeof(serverClojure));
+    threadBuffer = create_list(sizeof(pthread_t));
 
 
     pthread_t recvThread, sendThread;
