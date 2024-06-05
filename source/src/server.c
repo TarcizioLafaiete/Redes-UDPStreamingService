@@ -66,27 +66,24 @@ void sendDatagram(int socket, serverClojure clojure){
 
 }
 
-void* clientHandle(void* arg){
+void confirmConnectionRoutine(int id){
 
-    int* id = (int*)arg;
     serverClojure recvClojure;
     serverClojure sendClojure;
 
     pthread_mutex_lock(&readBufferMutex);
-    getItem(readBuffer,*id,&recvClojure);
+    getItem(readBuffer,id,&recvClojure);
     pthread_mutex_unlock(&readBufferMutex);
 
-    int movieSelected = recvClojure.data.escolha;
-
     datagram confirmConnection = { .startConnection = 0,
-                                .id = *id,
+                                .id = id,
                                 .escolha = -1,
                                 .sequence = 0,
                                 .ack = -1,
                                 .buffer = "\0"};
 
     sendClojure = recvClojure;
-    while(recvClojure.data.ack != *id){
+    while(recvClojure.data.ack != id){
         sendClojure.data =  confirmConnection;
 
         pthread_mutex_lock(&writeBufferMutex);
@@ -96,13 +93,24 @@ void* clientHandle(void* arg){
         sleep(1);
         
         pthread_mutex_lock(&readBufferMutex);
-        getItem(readBuffer,*id,&recvClojure);
+        getItem(readBuffer,id,&recvClojure);
         pthread_mutex_unlock(&readBufferMutex);
     }
+}
 
+void sendMovieScriptRoutine(int id){
+    serverClojure recvClojure;
+    serverClojure sendClojure;
+
+    pthread_mutex_lock(&readBufferMutex);
+    getItem(readBuffer,id,&recvClojure);
+    pthread_mutex_unlock(&readBufferMutex);
+
+    sendClojure = recvClojure;
+    
     printf("Going to streaming routine \n");
     datagram phraseDatagramCycle = {.startConnection = 0,
-                                    .id = *id,
+                                    .id = id,
                                     .escolha = -1,
                                     .sequence = 0,
                                     .ack = -1,
@@ -116,7 +124,7 @@ void* clientHandle(void* arg){
         sendClojure.data = phraseDatagramCycle;
         printf("Clojure was setted \n");
 
-        while(recvClojure.data.ack != *id || recvClojure.data.sequence != sequence){
+        while(recvClojure.data.ack != id || recvClojure.data.sequence != sequence){
             printf("Datagram process \n");
             pthread_mutex_lock(&writeBufferMutex);
             printf("Writing clojure \n");
@@ -127,7 +135,7 @@ void* clientHandle(void* arg){
 
             pthread_mutex_lock(&readBufferMutex);
             printf("Verifying if datagram was sent \n");
-            getItem(readBuffer,*id,&recvClojure);
+            getItem(readBuffer,id,&recvClojure);
             printf("confirmation sequence: %d \n",recvClojure.data.sequence);
             pthread_mutex_unlock(&readBufferMutex);
         }
@@ -136,6 +144,15 @@ void* clientHandle(void* arg){
         sequence++;
 
     }
+}
+
+void* clientHandle(void* arg){
+
+    int* id = (int*)arg;
+
+    confirmConnectionRoutine(*id);
+
+    sendMovieScriptRoutine(*id);
 
 }
 
