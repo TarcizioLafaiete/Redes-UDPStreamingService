@@ -74,11 +74,9 @@ void* clientHandle(void* arg){
 
     pthread_mutex_lock(&readBufferMutex);
     getItem(readBuffer,*id,&recvClojure);
-    printf("Start Connection: %d \n",recvClojure.data.startConnection);
     pthread_mutex_unlock(&readBufferMutex);
 
     int movieSelected = recvClojure.data.escolha;
-    printf("movie Selected: %d \n",movieSelected);
 
     datagram confirmConnection = { .startConnection = 0,
                                 .id = *id,
@@ -90,20 +88,53 @@ void* clientHandle(void* arg){
     sendClojure = recvClojure;
     while(recvClojure.data.ack != *id){
         sendClojure.data =  confirmConnection;
-        printf("send Clojure Data: %d \n",sendClojure.data.id);
 
         pthread_mutex_lock(&writeBufferMutex);
-        printf("WriteBuffer size: %d \n",getSize(writeBuffer));
         push(writeBuffer,&sendClojure);
-        printf("Datagram pushed to writeBuffer \n");
         pthread_mutex_unlock(&writeBufferMutex);
     
         sleep(1);
         
         pthread_mutex_lock(&readBufferMutex);
         getItem(readBuffer,*id,&recvClojure);
-        printf("read Buffer ack: %d \n",recvClojure.data.ack);
         pthread_mutex_unlock(&readBufferMutex);
+    }
+
+    printf("Going to streaming routine \n");
+    datagram phraseDatagramCycle = {.startConnection = 0,
+                                    .id = *id,
+                                    .escolha = -1,
+                                    .sequence = 0,
+                                    .ack = -1,
+                                    .buffer = "\0"};
+
+    int sequence = 1;
+    char phrase[250] = "Phrase";
+    while(sequence <= 5){
+        memcpy(phraseDatagramCycle.buffer,phrase,250*sizeof(char));
+        phraseDatagramCycle.sequence = sequence;
+        sendClojure.data = phraseDatagramCycle;
+        printf("Clojure was setted \n");
+
+        while(recvClojure.data.ack != *id || recvClojure.data.sequence != sequence){
+            printf("Datagram process \n");
+            pthread_mutex_lock(&writeBufferMutex);
+            printf("Writing clojure \n");
+            push(writeBuffer,&sendClojure);
+            pthread_mutex_unlock(&writeBufferMutex);
+
+            sleep(1);
+
+            pthread_mutex_lock(&readBufferMutex);
+            printf("Verifying if datagram was sent \n");
+            getItem(readBuffer,*id,&recvClojure);
+            printf("confirmation sequence: %d \n",recvClojure.data.sequence);
+            pthread_mutex_unlock(&readBufferMutex);
+        }
+
+        sleep(3);
+        sequence++;
+
     }
 
 }
@@ -118,10 +149,8 @@ void* sendHandle(void* arg){
         
         pthread_mutex_lock(&writeBufferMutex);
         if(getSize(writeBuffer) > 0){
-            printf("Has data - size: %d \n",getSize(writeBuffer));
             pop(writeBuffer,&clojure);
             sendDatagram(clojure.core.server_fd,clojure);
-            printf("Datagram Sent \n");
         }
         pthread_mutex_unlock(&writeBufferMutex);
     }
@@ -136,25 +165,23 @@ void* recvHandle(void* arg){
         serverClojure clojure;
         clojure.core = *core;
         receiveDatagram(clojure.core.server_fd,&clojure);
-        printf("startConnection Requisition: %d \n",clojure.data.startConnection);
+
         if(clojure.data.startConnection){
-            printf("connection starting ... \n");
 
             pthread_mutex_lock(&readBufferMutex);
             push(readBuffer,&clojure);
-            printf("Open space in buffer to this client \n");
             client_id = getSize(readBuffer);
-            printf("Generate client id: %d \n",client_id);
             pthread_mutex_unlock(&readBufferMutex);
             
             pthread_t newThread;
             pthread_create(&newThread,NULL,clientHandle,&client_id);
-            printf("New thread created \n");
             push(threadBuffer,&newThread);
-            printf("Put this thread in threadBuffer \n");
         }
         else{
+            pthread_mutex_lock(&readBufferMutex);
+            printf("sequence data: %d  - clojure data: %d \n",clojure.data.sequence,clojure.data.id);
             setItem(readBuffer,clojure.data.id,&clojure);
+            pthread_mutex_unlock(&readBufferMutex);
         }
     }
 }
