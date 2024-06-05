@@ -1,10 +1,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <pthread.h>
 
 #include "../include/socketUtils.h"
 #include "../include/clientCore.h"
+#include "../include/linked_list.h"
 #include "../include/terminalPrinter.h"
+
+int last_message = 0;
+int ackFlag = 0;
+datagram* currentDatagram;
+pthread_mutex_t sendMutex;
 
 
 clientCore initClient(char* argv[]){
@@ -40,6 +47,18 @@ datagram receiveDatagram(int socket){
 
 }
 
+void* sendHandle(void* arg){
+    clientCore* core = (clientCore*) arg;
+    while(1){
+        pthread_mutex_lock(&sendMutex);
+        if(currentDatagram != NULL && ackFlag == 0){
+            sendDatagram(*core,*currentDatagram);
+            sleep(1);
+        }
+        pthread_mutex_unlock(&sendMutex);
+    }
+}
+
 int chooseMovie(){
     int movieSelected;
 
@@ -62,13 +81,15 @@ int startConnection(clientCore core, int movieSelected){
                             .ack = -1,
                             .buffer = "\0"
     };
+
     sendDatagram(core,startDatagram);
 
-    printf("Receiving datagram \n");
     datagram response = receiveDatagram(core.client_fd);
-    printf("Datagram received \n");
+
     response.ack = response.id;
+
     sendDatagram(core,response);
+
     return response.id;
 }
 
@@ -87,10 +108,17 @@ void endConnection(clientCore core){
 void phraseRoutine(clientCore core){
     int last_sequence = 0;
     printBorder();
-    while(last_sequence <= 5){
+    while(last_sequence < 5){
         datagram response = receiveDatagram(core.client_fd);
-        last_sequence = response.sequence;
-        printPhrase(response.buffer);
+        printf("response sequence: %d \n",response.sequence);
+
+        if(response.sequence > last_sequence){
+            printPhrase(response.buffer);
+            last_sequence = response.sequence;
+        }
+
+        response.ack = core.client_id;
+        sendDatagram(core,response);
     }
     printBorder();
 
@@ -99,6 +127,11 @@ void phraseRoutine(clientCore core){
 int main(int argc, char* argv[]){
 
     clientCore core = initClient(argv);
+    pthread_t sendThread;
+    currentDatagram = NULL;
+    // pthread_mutex_init(&sendMutex,NULL);
+    // pthread_create(&sendThread,NULL,sendHandle,&core);
+
     while(1){
         int movieSelected = chooseMovie();
         if(!movieSelected){
@@ -111,10 +144,10 @@ int main(int argc, char* argv[]){
             printf("client id fornecido: %d \n",core.client_id);
             core.ready = 1;
         }
+        phraseRoutine(core);
         return 0;
-        // phraseRoutine(core);
-
     }
+    // pthread_join(sendThread,NULL);
 
     return 0;
 }
