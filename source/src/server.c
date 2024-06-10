@@ -6,6 +6,7 @@
 #include "../include/socketUtils.h"
 #include "../include/serverCore.h"
 #include "../include/linked_list.h"
+#include "../include/movie_script.h"
 
 typedef struct{
     serverCore core;
@@ -146,7 +147,7 @@ int movieOptionRequest(int id){
 
 }
 
-void sendMovieScriptRoutine(int id){
+void sendMovieScriptRoutine(int id,int movieSelected){
     serverClojure recvClojure;
     serverClojure sendClojure;
 
@@ -166,17 +167,14 @@ void sendMovieScriptRoutine(int id){
                                     .buffer = "\0"};
 
     int sequence = 1;
-    char phrase[250] = "Phrase";
     while(sequence <= 5){
-        memcpy(phraseDatagramCycle.buffer,phrase,250*sizeof(char));
+        memcpy(phraseDatagramCycle.buffer,movie_script[movieSelected-1][sequence-1],250*sizeof(char));
         phraseDatagramCycle.sequence = sequence;
         sendClojure.data = phraseDatagramCycle;
         printf("Clojure was setted \n");
 
         while(recvClojure.data.ack != id || recvClojure.data.sequence < sequence){
-            printf("Datagram process \n");
             pthread_mutex_lock(&writeBufferMutex);
-            printf("Writing clojure \n");
             push(writeBuffer,&sendClojure);
             pthread_mutex_unlock(&writeBufferMutex);
 
@@ -210,7 +208,7 @@ void* clientHandle(void* arg){
         if(!movieOption){
             break;
         }
-        sendMovieScriptRoutine(*id);
+        sendMovieScriptRoutine(*id,movieOption);
     }
     printf("Finanlizando client Handle \n");
 }
