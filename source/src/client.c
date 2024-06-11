@@ -118,6 +118,7 @@ int main(int argc, char* argv[]){
         core.client_id = startConnection(core,movieSelected);
         printf("client id: %d \n",core.client_id);
         phraseRoutine(core);
+        endConnection(core);
         
     }
 
