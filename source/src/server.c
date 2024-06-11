@@ -18,11 +18,9 @@ typedef struct{
 
 int num_client;
 
-S_LinkedList* writeBuffer;
 S_LinkedList* readBuffer;
 S_LinkedList* threadBuffer;
 
-pthread_mutex_t writeBufferMutex;
 pthread_mutex_t readBufferMutex;
 pthread_mutex_t numClientMutex;
 
@@ -94,10 +92,8 @@ void confirmConnectionRoutine(int id){
         sendClojure.data =  confirmConnection;
         printf("ID check : %d \n",sendClojure.data.id);
 
-        pthread_mutex_lock(&writeBufferMutex);
-        push(writeBuffer,&sendClojure);
-        pthread_mutex_unlock(&writeBufferMutex);
-    
+        sendDatagram(sendClojure.core.server_fd,sendClojure);
+
         sleep(1);
         
         pthread_mutex_lock(&readBufferMutex);
@@ -180,24 +176,6 @@ void* clientHandle(void* arg){
 
 }
 
-void* sendHandle(void* arg){
-    
-    serverCore* core = (serverCore*)arg;
-
-    while(1){
-        serverClojure clojure;
-        clojure.core = *core;
-        
-        pthread_mutex_lock(&writeBufferMutex);
-        if(getSize(writeBuffer) > 0){
-            pop(writeBuffer,&clojure);
-            sendDatagram(clojure.core.server_fd,clojure);
-        }
-        pthread_mutex_unlock(&writeBufferMutex);
-    }
-
-}
-
 void* recvHandle(void* arg){
     
     serverCore* core = (serverCore*)arg;
@@ -258,17 +236,15 @@ void* clientNumberHandle(void* arg){
 int main(int argc,char* argv[]){num_client++;
 
     serverCore core = initServer(argv);
-    writeBuffer = create_list(sizeof(serverClojure));
+
     readBuffer = create_list(sizeof(serverClojure));
     threadBuffer = create_list(sizeof(pthread_t));
     num_client = 0;
 
     pthread_t recvThread, sendThread,clientNumberThread;
     pthread_create(&recvThread,NULL,recvHandle,&core);
-    pthread_create(&sendThread,NULL,sendHandle,&core);
     pthread_create(&clientNumberThread,NULL,clientNumberHandle,NULL);
     
-    pthread_mutex_init(&writeBufferMutex,NULL);
     pthread_mutex_init(&readBufferMutex,NULL);
     pthread_mutex_init(&numClientMutex,NULL);
 
