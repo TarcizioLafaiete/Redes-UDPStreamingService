@@ -107,50 +107,6 @@ void confirmConnectionRoutine(int id){
 }
 
 
-void sendMovieScriptRoutine(int id,int movieSelected){
-    serverClojure recvClojure;
-    serverClojure sendClojure;
-
-    pthread_mutex_lock(&readBufferMutex);
-    getItem(readBuffer,id,&recvClojure);
-    pthread_mutex_unlock(&readBufferMutex);
-
-    sendClojure = recvClojure;
-    
-    printf("Going to streaming routine \n");
-    datagram phraseDatagramCycle = {.startConnection = 0,
-                                    .endConnection = 0,
-                                    .id = id,
-                                    .escolha = -1,
-                                    .sequence = 0,
-                                    .ack = -1,
-                                    .buffer = "\0"};
-
-    int sequence = 1;
-    while(sequence <= 5){
-        memcpy(phraseDatagramCycle.buffer,movie_script[movieSelected-1][sequence-1],250*sizeof(char));
-        phraseDatagramCycle.sequence = sequence;
-        sendClojure.data = phraseDatagramCycle;
-        printf("Clojure was setted \n");
-
-        while(recvClojure.data.ack != id || recvClojure.data.sequence < sequence){
-            sendDatagram(sendClojure.core.server_fd,sendClojure);
-
-            sleep(1);
-
-            pthread_mutex_lock(&readBufferMutex);
-            printf("Verifying if datagram was sent \n");
-            getItem(readBuffer,id,&recvClojure);
-            printf("confirmation sequence: %d e real sequence: %d \n",recvClojure.data.sequence,sequence);
-            pthread_mutex_unlock(&readBufferMutex);
-        }
-
-        sleep(3);
-        sequence++;
-
-    }
-}
-
 void* clientHandle(void* arg){
 
     int id = *((int*)arg);
