@@ -75,15 +75,11 @@ void confirmConnectionRoutine(int id){
     getItem(readBuffer,id,&response);
     pthread_mutex_unlock(&readBufferMutex);
 
-    printf("Confirm connection routine \n");
-
     datagram confirmConnection = { .startConnection = 0,
                                 .endConnection = 0,
                                 .req_sequence = 0,
                                 .id = id,
                                 .escolha = -1,
-                                .sequence = 0,
-                                .ack = -1,
                                 .buffer = "\0"};
 
     response.data = confirmConnection;
@@ -134,7 +130,6 @@ void* recvHandle(void* arg){
             pthread_mutex_lock(&readBufferMutex);
             push(readBuffer,&clojure);
             int client_id = getSize(readBuffer);
-            printf("client ID %d \n",client_id);
             pthread_mutex_unlock(&readBufferMutex);
             
             pthread_t newThread;
@@ -159,7 +154,6 @@ void* recvHandle(void* arg){
         else{
             pthread_mutex_lock(&readBufferMutex);
             setItem(readBuffer,clojure.data.id,&clojure);
-            printf("Buffer Setted \n");
             pthread_mutex_unlock(&readBufferMutex);
         }
     }
@@ -194,7 +188,6 @@ int main(int argc,char* argv[]){num_client++;
     pthread_mutex_init(&numClientMutex,NULL);
 
     pthread_join(recvThread,NULL);
-    pthread_join(sendThread,NULL);
     pthread_join(clientNumberThread,NULL);
 
     return 0;

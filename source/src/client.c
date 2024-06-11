@@ -20,7 +20,6 @@ clientCore initClient(char* argv[]){
     core.serverSocket = configure_addr(core.inet,atoi(argv[3]));
     
     connect_client(&core);
-    printf("connect socket \n");
 
     return core;
 }
@@ -65,8 +64,6 @@ int startConnection(clientCore core){
                             .req_sequence = 0,
                             .id = -1,
                             .escolha = -1,
-                            .sequence = -1,
-                            .ack = -1,
                             .buffer = "\0"
     };
 
@@ -84,8 +81,6 @@ void endConnection(clientCore core){
                             .req_sequence = -1,
                             .id = core.client_id,
                             .escolha = 0,
-                            .sequence = -1,
-                            .ack = -1,
                             .buffer = "\0"};
     sendDatagram(core,endDatagram);
 }
@@ -96,8 +91,6 @@ void movieRequest(clientCore core, int movieSelected){
                         .req_sequence = last_message + 1,
                         .id = core.client_id,
                         .escolha = movieSelected,
-                        .sequence = 0,
-                        .ack = -1,
                         .buffer = "\0"};
 
     sendDatagram(core,request);
@@ -128,8 +121,7 @@ int main(int argc, char* argv[]){
         }
 
         if(!core.ready){
-            core.client_id = startConnection(core);
-            printf("client id: %d \n",core.client_id);    
+            core.client_id = startConnection(core);    
             core.ready = 1;
         }
         movieRequest(core,movieSelected);
