@@ -9,9 +9,6 @@
 #include "../include/terminalPrinter.h"
 
 int last_message = 0;
-int ackFlag = 0;
-datagram* currentDatagram;
-pthread_mutex_t sendMutex;
 
 
 clientCore initClient(char* argv[]){
@@ -62,11 +59,12 @@ int chooseMovie(){
     }
 }
 
-int startConnection(clientCore core,int movieSelected){
+int startConnection(clientCore core){
     datagram startDatagram = {.startConnection = 1,
                             .endConnection = 0,
+                            .req_sequence = 0,
                             .id = -1,
-                            .escolha = movieSelected,
+                            .escolha = -1,
                             .sequence = -1,
                             .ack = -1,
                             .buffer = "\0"
@@ -76,11 +74,6 @@ int startConnection(clientCore core,int movieSelected){
 
     datagram response = receiveDatagram(core.client_fd);
 
-    response.ack = response.id;
-    response.escolha = movieSelected;
-
-    sendDatagram(core,response);
-
     return response.id;
 }
 
@@ -88,12 +81,27 @@ void endConnection(clientCore core){
 
     datagram endDatagram = {.startConnection = 0,
                             .endConnection = 1,
+                            .req_sequence = -1,
                             .id = core.client_id,
                             .escolha = 0,
                             .sequence = -1,
                             .ack = -1,
                             .buffer = "\0"};
     sendDatagram(core,endDatagram);
+}
+
+void movieRequest(clientCore core, int movieSelected){
+    datagram request = {.startConnection = 0,
+                        .endConnection = 0,
+                        .req_sequence = last_message + 1,
+                        .id = core.client_id,
+                        .escolha = movieSelected,
+                        .sequence = 0,
+                        .ack = -1,
+                        .buffer = "\0"};
+
+    sendDatagram(core,request);
+    last_message++;
 }
 
 void phraseRoutine(clientCore core){
@@ -115,12 +123,21 @@ int main(int argc, char* argv[]){
 
     while(1){
         int movieSelected = chooseMovie();
-        core.client_id = startConnection(core,movieSelected);
-        printf("client id: %d \n",core.client_id);
+        if(!movieSelected){
+            break;
+        }
+
+        if(!core.ready){
+            core.client_id = startConnection(core);
+            printf("client id: %d \n",core.client_id);    
+            core.ready = 1;
+        }
+        movieRequest(core,movieSelected);
         phraseRoutine(core);
-        endConnection(core);
         
     }
+
+    endConnection(core);
 
     return 0;
 }

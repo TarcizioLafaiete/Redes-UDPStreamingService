@@ -69,65 +69,54 @@ void sendDatagram(serverClojure clojure){
 
 void confirmConnectionRoutine(int id){
 
-    serverClojure recvClojure;
-    serverClojure sendClojure;
+    serverClojure response;
 
     pthread_mutex_lock(&readBufferMutex);
-    getItem(readBuffer,id,&recvClojure);
+    getItem(readBuffer,id,&response);
     pthread_mutex_unlock(&readBufferMutex);
 
     printf("Confirm connection routine \n");
 
     datagram confirmConnection = { .startConnection = 0,
                                 .endConnection = 0,
+                                .req_sequence = 0,
                                 .id = id,
                                 .escolha = -1,
                                 .sequence = 0,
                                 .ack = -1,
                                 .buffer = "\0"};
 
-    sendClojure = recvClojure;
-    printf("id: %d - ack: %d \n",id,recvClojure.data.ack);
-    while(recvClojure.data.ack != id){
-        sendClojure.data =  confirmConnection;
-        printf("ID check : %d \n",sendClojure.data.id);
+    response.data = confirmConnection;
 
-        sendDatagram(sendClojure);
+    sendDatagram(response);
 
-        sleep(1);
-        
-        pthread_mutex_lock(&readBufferMutex);
-        getItem(readBuffer,id,&recvClojure);
-        pthread_mutex_unlock(&readBufferMutex);
-
-        printf("ack received: %d \n",recvClojure.data.ack);
-    }
-
-    printf("confirm requisition: %d \n",recvClojure.data.ack);
 }
-
 
 void* clientHandle(void* arg){
 
     int id = *((int*)arg);
 
     confirmConnectionRoutine(id);
+    
+    int last_request = 0;
 
     serverClojure request;
 
-    pthread_mutex_lock(&readBufferMutex);
-    getItem(readBuffer,id,&request);
-    pthread_mutex_unlock(&readBufferMutex);
+    while(1){
+        pthread_mutex_lock(&readBufferMutex);
+        getItem(readBuffer,id,&request);
+        pthread_mutex_unlock(&readBufferMutex);
 
-    printf("AAAAAAAAAAAAAAA \n");
+        request.data.startConnection = 0;
 
-    request.data.startConnection = 0;
-    request.data.endConnection = 0;
-
-    for(int i = 0; i < 5; i++){
-        memcpy(request.data.buffer,movie_script[request.data.escolha - 1][i],250*sizeof(char)); 
-        sendDatagram(request);
-        sleep(3);
+        if(request.data.req_sequence > last_request){
+            for(int i = 0; i < 5; i++){
+                memcpy(request.data.buffer,movie_script[request.data.escolha - 1][i],250*sizeof(char)); 
+                sendDatagram(request);
+                sleep(3);
+            }
+            last_request = request.data.req_sequence;
+        }
     }
 
 }
@@ -160,7 +149,7 @@ void* recvHandle(void* arg){
         else if(clojure.data.endConnection){
             pthread_t thread;
             getItem(threadBuffer,clojure.data.id,&thread);
-            pthread_join(thread,NULL);
+            pthread_cancel(thread);
 
             pthread_mutex_lock(&numClientMutex);
             num_client--;
