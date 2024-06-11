@@ -110,42 +110,6 @@ void confirmConnectionRoutine(int id){
     printf("confirm requisition: %d \n",recvClojure.data.ack);
 }
 
-int movieOptionRequest(int id){
-    serverClojure recvClojure;
-    serverClojure sendClojure;
-
-    pthread_mutex_lock(&readBufferMutex);
-    getItem(readBuffer,id,&recvClojure);
-    pthread_mutex_unlock(&readBufferMutex);
-
-    sendClojure = recvClojure;
-
-    datagram movieReqeustDatagram ={.startConnection = 0,
-                                    .endConnection = 0,
-                                    .id = id,
-                                    .escolha = 12,
-                                    .sequence = 0,
-                                    .ack = -1,
-                                    .buffer = "\0"};
-
-    while(recvClojure.data.ack != id || recvClojure.data.escolha == -1){
-        sendClojure.data = movieReqeustDatagram;
-
-        pthread_mutex_lock(&writeBufferMutex);
-        push(writeBuffer,&sendClojure);
-        pthread_mutex_unlock(&writeBufferMutex);
-
-        sleep(1);
-
-        pthread_mutex_lock(&readBufferMutex);
-        getItem(readBuffer,id,&recvClojure);
-        pthread_mutex_unlock(&readBufferMutex);
-
-    }
-
-    return recvClojure.data.escolha;
-
-}
 
 void sendMovieScriptRoutine(int id,int movieSelected){
     serverClojure recvClojure;
@@ -174,9 +138,7 @@ void sendMovieScriptRoutine(int id,int movieSelected){
         printf("Clojure was setted \n");
 
         while(recvClojure.data.ack != id || recvClojure.data.sequence < sequence){
-            pthread_mutex_lock(&writeBufferMutex);
-            push(writeBuffer,&sendClojure);
-            pthread_mutex_unlock(&writeBufferMutex);
+            sendDatagram(sendClojure.core.server_fd,sendClojure);
 
             sleep(1);
 
@@ -195,22 +157,27 @@ void sendMovieScriptRoutine(int id,int movieSelected){
 
 void* clientHandle(void* arg){
 
-    int* id = (int*)arg;
+    int id = *((int*)arg);
 
-    printf("ID fornecido nessa porra: %d \n",*id);
+    confirmConnectionRoutine(id);
 
-    confirmConnectionRoutine(*id);
+    serverClojure request;
 
-    int movieOption = 300;
-    while(1){
-        movieOption = movieOptionRequest(*id);
-        printf("movieOption: %d \n",movieOption);
-        if(!movieOption){
-            break;
-        }
-        sendMovieScriptRoutine(*id,movieOption);
+    pthread_mutex_lock(&readBufferMutex);
+    getItem(readBuffer,id,&request);
+    pthread_mutex_unlock(&readBufferMutex);
+
+    printf("AAAAAAAAAAAAAAA \n");
+
+    request.data.startConnection = 0;
+    request.data.endConnection = 0;
+
+    for(int i = 0; i < 5; i++){
+        memcpy(request.data.buffer,movie_script[request.data.escolha - 1][i],250*sizeof(char)); 
+        sendDatagram(request.core.server_fd,request);
+        sleep(3);
     }
-    printf("Finanlizando client Handle \n");
+
 }
 
 void* sendHandle(void* arg){
@@ -244,6 +211,7 @@ void* recvHandle(void* arg){
             pthread_mutex_lock(&readBufferMutex);
             push(readBuffer,&clojure);
             int client_id = getSize(readBuffer);
+            printf("client ID %d \n",client_id);
             pthread_mutex_unlock(&readBufferMutex);
             
             pthread_t newThread;

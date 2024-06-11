@@ -47,17 +47,6 @@ datagram receiveDatagram(int socket){
 
 }
 
-void* sendHandle(void* arg){
-    clientCore* core = (clientCore*) arg;
-    while(1){
-        pthread_mutex_lock(&sendMutex);
-        if(currentDatagram != NULL && ackFlag == 0){
-            sendDatagram(*core,*currentDatagram);
-            sleep(1);
-        }
-        pthread_mutex_unlock(&sendMutex);
-    }
-}
 
 int chooseMovie(){
     int movieSelected;
@@ -73,11 +62,11 @@ int chooseMovie(){
     }
 }
 
-int startConnection(clientCore core){
+int startConnection(clientCore core,int movieSelected){
     datagram startDatagram = {.startConnection = 1,
                             .endConnection = 0,
                             .id = -1,
-                            .escolha = -1,
+                            .escolha = movieSelected,
                             .sequence = -1,
                             .ack = -1,
                             .buffer = "\0"
@@ -88,27 +77,14 @@ int startConnection(clientCore core){
     datagram response = receiveDatagram(core.client_fd);
 
     response.ack = response.id;
+    response.escolha = movieSelected;
 
     sendDatagram(core,response);
 
     return response.id;
 }
 
-void movieSelectionResponse(clientCore core,int movieSelected){
-
-    datagram response = receiveDatagram(core.client_fd);
-
-    printf("response received: %d \n",response.escolha);
-
-    response.ack = core.client_id;
-    response.escolha = movieSelected;
-
-    sendDatagram(core,response);
-
-}
-
 void endConnection(clientCore core){
-    if(!core.ready){return;}
 
     datagram endDatagram = {.startConnection = 0,
                             .endConnection = 1,
@@ -122,18 +98,12 @@ void endConnection(clientCore core){
 
 void phraseRoutine(clientCore core){
     int last_sequence = 0;
+    datagram response;
     printBorder();
-    while(last_sequence < 5){
-        datagram response = receiveDatagram(core.client_fd);
-        printf("response sequence: %d \n",response.sequence);
+    for(int i = 0; i < 5; i++){
+        response =  receiveDatagram(core.client_fd);
+        printPhrase(response.buffer);
 
-        if(response.sequence > last_sequence){
-            printPhrase(response.buffer);
-            last_sequence = response.sequence;
-        }
-
-        response.ack = core.client_id;
-        sendDatagram(core,response);
     }
     printBorder();
 
@@ -142,27 +112,14 @@ void phraseRoutine(clientCore core){
 int main(int argc, char* argv[]){
 
     clientCore core = initClient(argv);
-    pthread_t sendThread;
-    currentDatagram = NULL;
-    // pthread_mutex_init(&sendMutex,NULL);
-    // pthread_create(&sendThread,NULL,sendHandle,&core);
 
     while(1){
         int movieSelected = chooseMovie();
-        if(!core.ready){
-            printf("Requisitando conexao \n");
-            core.client_id = startConnection(core);
-            printf("client id fornecido: %d \n",core.client_id);
-            core.ready = 1;
-        }
-        movieSelectionResponse(core,movieSelected);
-        if(!movieSelected){
-            endConnection(core);
-            return 0;
-        }
+        core.client_id = startConnection(core,movieSelected);
+        printf("client id: %d \n",core.client_id);
         phraseRoutine(core);
+        
     }
-    // pthread_join(sendThread,NULL);
 
     return 0;
 }
