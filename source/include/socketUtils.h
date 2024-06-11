@@ -32,6 +32,7 @@ typedef struct{
     int escolha;
     int startConnection;
     int endConnection;
+    int req_sequence;
     int ack;
     char buffer[250];
 } datagram;
