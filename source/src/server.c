@@ -37,32 +37,32 @@ serverCore initServer(char* argv[]){
     return core;
 }
 
-void receiveDatagram(int socket,serverClojure* clojure){
+void receiveDatagram(serverClojure* clojure){
 
     if(clojure->core.inet.type == IPV4){
         struct sockaddr cliaddr;
         int len = sizeof(cliaddr);
-        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,&cliaddr,&len);
+        recvfrom(clojure->core.server_fd,&clojure->data,sizeof(clojure->data),0,&cliaddr,&len);
         clojure->cliaddr = cliaddr;
         clojure->cliaddr_len = len;
     }
     else{
         struct sockaddr_in6 cliaddr;
         int len = sizeof(cliaddr);
-        recvfrom(socket,&clojure->data,sizeof(clojure->data),0,(struct sockaddr*)&cliaddr,&len);
+        recvfrom(clojure->core.server_fd,&clojure->data,sizeof(clojure->data),0,(struct sockaddr*)&cliaddr,&len);
         clojure->cliaddr6 = cliaddr;
         clojure->cliaddr_len = len;
     }
 
 }
 
-void sendDatagram(int socket, serverClojure clojure){
+void sendDatagram(serverClojure clojure){
 
     if(clojure.core.inet.type == IPV4){
-        sendto(socket,&clojure.data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)&clojure.cliaddr,sizeof(clojure.cliaddr));
+        sendto(clojure.core.server_fd,&clojure.data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)&clojure.cliaddr,sizeof(clojure.cliaddr));
     }
     else{
-        sendto(socket,&clojure.data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)&clojure.cliaddr6,sizeof(clojure.cliaddr6));
+        sendto(clojure.core.server_fd,&clojure.data,MAX_MESSAGE_SIZE,0,(struct sockaddr*)&clojure.cliaddr6,sizeof(clojure.cliaddr6));
     }
 
 }
@@ -92,7 +92,7 @@ void confirmConnectionRoutine(int id){
         sendClojure.data =  confirmConnection;
         printf("ID check : %d \n",sendClojure.data.id);
 
-        sendDatagram(sendClojure.core.server_fd,sendClojure);
+        sendDatagram(sendClojure);
 
         sleep(1);
         
@@ -126,7 +126,7 @@ void* clientHandle(void* arg){
 
     for(int i = 0; i < 5; i++){
         memcpy(request.data.buffer,movie_script[request.data.escolha - 1][i],250*sizeof(char)); 
-        sendDatagram(request.core.server_fd,request);
+        sendDatagram(request);
         sleep(3);
     }
 
@@ -139,7 +139,7 @@ void* recvHandle(void* arg){
     while(1){
         serverClojure clojure;
         clojure.core = *core;
-        receiveDatagram(clojure.core.server_fd,&clojure);
+        receiveDatagram(&clojure);
 
         if(clojure.data.startConnection){
             pthread_mutex_lock(&readBufferMutex);
