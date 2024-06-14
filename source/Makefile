@@ -9,8 +9,8 @@ OBJDIR = obj
 BIN = bin
 
 # Lista de arquivos fonte
-SERVER_SRCS = $(SRCDIR)/server.c $(SRCDIR)/serverCore.c $(SRCDIR)/socketUtils.c $(SRCDIR)/terminalPrinter.c $(SRCDIR)/coordinateUtils.c
-CLIENT_SRCS = $(SRCDIR)/client.c $(SRCDIR)/clientCore.c $(SRCDIR)/socketUtils.c $(SRCDIR)/terminalPrinter.c $(SRCDIR)/coordinateUtils.c
+SERVER_SRCS = $(SRCDIR)/server.c $(SRCDIR)/serverCore.c $(SRCDIR)/socketUtils.c $(SRCDIR)/linked_list.c
+CLIENT_SRCS = $(SRCDIR)/client.c $(SRCDIR)/clientCore.c $(SRCDIR)/socketUtils.c $(SRCDIR)/terminalPrinter.c
 
 # Lista de arquivos objeto
 SERVER_OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SERVER_SRCS))

@@ -5,7 +5,6 @@
 
 #include "../include/socketUtils.h"
 #include "../include/clientCore.h"
-#include "../include/linked_list.h"
 #include "../include/terminalPrinter.h"
 
 int last_message = 0;
