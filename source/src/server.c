@@ -18,6 +18,7 @@ typedef struct{
 
 int num_client;
 
+
 S_LinkedList* readBuffer;
 S_LinkedList* threadBuffer;
 
@@ -172,7 +173,7 @@ void* clientNumberHandle(void* arg){
 
 }
 
-int main(int argc,char* argv[]){num_client++;
+int main(int argc,char* argv[]){
 
     serverCore core = initServer(argv);
 
